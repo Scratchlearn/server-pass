@@ -2,10 +2,18 @@ const express = require('express');
 const { BigQuery } = require('@google-cloud/bigquery');
 const cors = require('cors');
 const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config();
+
+
+const projectId = process.env.GOOGLE_PROJECT_ID;
+const keyFilePath = path.join(__dirname, process.env.GOOGLE_KEY_FILE);
+const bigQueryDataset = process.env.BIGQUERY_DATASET;
+const bigQueryTable = process.env.BIGQUERY_TABLE;
+
 // Initialize express app
 const app = express();
 
-const keyFilePath = path.join(__dirname, 'stellar-acre-407408-79ec63b7610a.json');
 
 console.log('Key file path:', keyFilePath);
 
@@ -16,7 +24,7 @@ console.log('Key file path:', keyFilePath);
 
 const bigQueryClient = new BigQuery({
   keyFilename: keyFilePath,  // Use forward slashes
-  projectId: 'stellar-acre-407408',  // Your Google Cloud project ID
+  projectId: projectId,  // Your Google Cloud project ID
   scopes: ['https://www.googleapis.com/auth/drive']  // Add Google Drive scope
 });
 
@@ -41,7 +49,7 @@ app.use(express.json()); // To handle JSON requests+
 // Route to get data from BigQuery
 app.get('/api/data', async (req, res) => {
   try {
-    const query = 'SELECT  * FROM `stellar-acre-407408.Scheduler_UI.Components_for_SchedulerUI`  ';
+    const query = 'SELECT  * FROM `stellar-acre-407408.bigQueryDataset.bigQueryTable`  ';
     const [rows] = await bigQueryClient.query(query);
     console.log('Data fetched from BigQuery:', rows);
 
@@ -94,7 +102,7 @@ app.post('/api/data', async (req, res) => {
 
   // Query to check if the task already exists
   const checkQuery = `
-    SELECT Key FROM \`stellar-acre-407408.Scheduler_UI.Components_for_SchedulerUI\`
+    SELECT Key FROM \`stellar-acre-407408.bigQueryDataset.bigQueryTable\`
     WHERE Key = @Key
   `;
 
@@ -110,7 +118,7 @@ app.post('/api/data', async (req, res) => {
     if (existingTasks.length > 0) {
       // If task exists, update it
       const updateQuery = `
-        UPDATE \`stellar-acre-407408.Scheduler_UI.Components_for_SchedulerUI\`
+        UPDATE \`stellar-acre-407408.bigQueryDataset.bigQueryTable\`
         SET 
           Delivery_code = @Delivery_code, 
           DelCode_w_o__ = @DelCode_w_o__, 
@@ -273,7 +281,7 @@ app.put('/api/data/:key', async (req, res) => {
   const { taskName, startDate, endDate, assignTo, status } = req.body;
 
   const query = `
-    UPDATE \`stellar-acre-407408.Scheduler_UI.Components_for_SchedulerUI\`
+    UPDATE \`stellar-acre-407408.bigQueryDataset.bigQueryTable\`
     SET Task = @Task_Details, Start_Date = @Planned_Start_Timestamp, End_Date = @Planned_Delivery_Timestamp, Assign_To = @Responsibility, Status = @Current_Status,Client=@Client, Total_Tasks = @Total_Tasks,Planned_Tasks = @Planned_Tasks,Completed_Tasks =@Completed_Tasks,Created_at = @Created_at,Updated_at = @Updated_at
     WHERE Key = @key
   `;
@@ -298,7 +306,7 @@ app.delete('/api/data/:key', async (req, res) => {
   const { key } = req.params;
 
   const query = `
-    DELETE FROM \`stellar-acre-407408.Scheduler_UI.Components_for_SchedulerUI\`
+    DELETE FROM \`stellar-acre-407408.bigQueryDataset.bigQueryTable\`
     WHERE Key = @key
   `;
 
