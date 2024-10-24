@@ -9,6 +9,7 @@ const projectId = process.env.GOOGLE_PROJECT_ID;
 const keyFilePath = path.join(__dirname, process.env.GOOGLE_KEY_FILE);
 const bigQueryDataset = process.env.BIGQUERY_DATASET;
 const bigQueryTable = process.env.BIGQUERY_TABLE;
+const bigQueryTable2 = "Per_Key_Per_Day";
 
 // Initialize express app
 const app = express();
@@ -30,7 +31,7 @@ app.use(express.json()); // To handle JSON requests
 // Route to get data from BigQuery
 app.get('/api/data', async (req, res) => {
   try {
-    const query = `SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` LIMIT 10000`;
+    const query = `SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` `;
     const [rows] = await bigQueryClient.query(query);
     console.log('Data fetched from BigQuery:', rows);
 
@@ -51,7 +52,9 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
-// Assuming the correct data is passed from the frontend:
+
+
+// post req
 app.post('/api/data', async (req, res) => {
   const {
     Key,
@@ -74,47 +77,50 @@ app.post('/api/data', async (req, res) => {
     Updated_at,
     Time_Left_For_Next_Task_dd_hh_mm_ss,
     Percent_Delivery_Planned,
-    Card_Corner_Status
+    Card_Corner_Status,
+    sliders // This is expected to be an array of slider data
   } = req.body;
 
-  // Query to check if the task already exists
-  const checkQuery = `SELECT Key FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` WHERE Key = @Key`;
-  const checkOptions = {
-    query: checkQuery,
-    params: { Key },
-    types: { Key: 'INT64' }
-  };
+  // Check if sliders data is provided
+  if (!sliders || sliders.length === 0) {
+    return res.status(400).send({ error: 'Slider data is mandatory.' });
+  }
 
   try {
+    // Handle task details (insert or update)
+    const checkQuery = `SELECT Key FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` WHERE Key = @Key`;
+    const checkOptions = {
+      query: checkQuery,
+      params: { Key },
+      types: { Key: 'INT64' }
+    };
+
     const [existingTasks] = await bigQueryClient.query(checkOptions);
 
     if (existingTasks.length > 0) {
       // If task exists, update it
-      const updateQuery = `
-        UPDATE \`${projectId}.${bigQueryDataset}.${bigQueryTable}\`
-        SET 
-          Delivery_code = @Delivery_code, 
-          DelCode_w_o__ = @DelCode_w_o__, 
-          Step_ID = @Step_ID, 
-          Task_Details = @Task_Details, 
-          Frequency___Timeline = @Frequency___Timeline, 
-          Client = @Client, 
-          Short_description = @Short_description, 
-          Planned_Start_Timestamp = @Planned_Start_Timestamp, 
-          Planned_Delivery_Timestamp = @Planned_Delivery_Timestamp, 
-          Responsibility = @Responsibility, 
-          Current_Status = @Current_Status, 
-          Total_Tasks = @Total_Tasks, 
-          Completed_Tasks = @Completed_Tasks, 
-          Planned_Tasks = @Planned_Tasks, 
-          Percent_Tasks_Completed = @Percent_Tasks_Completed, 
-          Created_at = @Created_at, 
-          Updated_at = @Updated_at, 
-          Time_Left_For_Next_Task_dd_hh_mm_ss = @Time_Left_For_Next_Task_dd_hh_mm_ss, 
-          Percent_Delivery_Planned = @Percent_Delivery_Planned, 
-          Card_Corner_Status = @Card_Corner_Status
-        WHERE Key = @Key
-      `;
+      const updateQuery = `UPDATE \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` SET 
+        Delivery_code = @Delivery_code,
+        DelCode_w_o__ = @DelCode_w_o__,
+        Step_ID = @Step_ID,
+        Task_Details = @Task_Details,
+        Frequency___Timeline = @Frequency___Timeline,
+        Client = @Client,
+        Short_description = @Short_description,
+        Planned_Start_Timestamp = @Planned_Start_Timestamp,
+        Planned_Delivery_Timestamp = @Planned_Delivery_Timestamp,
+        Responsibility = @Responsibility,
+        Current_Status = @Current_Status,
+        Total_Tasks = @Total_Tasks,
+        Completed_Tasks = @Completed_Tasks,
+        Planned_Tasks = @Planned_Tasks,
+        Percent_Tasks_Completed = @Percent_Tasks_Completed,
+        Created_at = @Created_at,
+        Updated_at = @Updated_at,
+        Time_Left_For_Next_Task_dd_hh_mm_ss = @Time_Left_For_Next_Task_dd_hh_mm_ss,
+        Percent_Delivery_Planned = @Percent_Delivery_Planned,
+        Card_Corner_Status = @Card_Corner_Status
+        WHERE Key = @Key`;
 
       const updateOptions = {
         query: updateQuery,
@@ -166,25 +172,11 @@ app.post('/api/data', async (req, res) => {
         }
       };
 
-      const [updateJob] = await bigQueryClient.createQueryJob(updateOptions);
-      await updateJob.getQueryResults();
-
-      res.status(200).send({ message: 'Task updated successfully.' });
+      await bigQueryClient.createQueryJob(updateOptions);
     } else {
       // If task doesn't exist, insert it
-      const insertQuery = `
-        INSERT INTO \`${projectId}.${bigQueryDataset}.${bigQueryTable}\`
-        (Key, Delivery_code, DelCode_w_o__, Step_ID, Task_Details, Frequency___Timeline, Client, Short_description, 
-        Planned_Start_Timestamp, Planned_Delivery_Timestamp, Responsibility, Current_Status, Total_Tasks, 
-        Completed_Tasks, Planned_Tasks, Percent_Tasks_Completed, Created_at, Updated_at, 
-        Time_Left_For_Next_Task_dd_hh_mm_ss, Percent_Delivery_Planned, Card_Corner_Status)
-        VALUES 
-        (@Key, @Delivery_code, @DelCode_w_o__, @Step_ID, @Task_Details, @Frequency___Timeline, @Client, 
-        @Short_description, @Planned_Start_Timestamp, @Planned_Delivery_Timestamp, @Responsibility, 
-        @Current_Status, @Total_Tasks, @Completed_Tasks, @Planned_Tasks, @Percent_Tasks_Completed, 
-        @Created_at, @Updated_at, @Time_Left_For_Next_Task_dd_hh_mm_ss, @Percent_Delivery_Planned, 
-        @Card_Corner_Status)
-      `;
+      const insertQuery = `INSERT INTO \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` (Key, Delivery_code, DelCode_w_o__, Step_ID, Task_Details, Frequency___Timeline, Client, Short_description, Planned_Start_Timestamp, Planned_Delivery_Timestamp, Responsibility, Current_Status, Total_Tasks, Completed_Tasks, Planned_Tasks, Percent_Tasks_Completed, Created_at, Updated_at, Time_Left_For_Next_Task_dd_hh_mm_ss, Percent_Delivery_Planned, Card_Corner_Status)
+      VALUES (@Key, @Delivery_code, @DelCode_w_o__, @Step_ID, @Task_Details, @Frequency___Timeline, @Client, @Short_description, @Planned_Start_Timestamp, @Planned_Delivery_Timestamp, @Responsibility, @Current_Status, @Total_Tasks, @Completed_Tasks, @Planned_Tasks, @Percent_Tasks_Completed, @Created_at, @Updated_at, @Time_Left_For_Next_Task_dd_hh_mm_ss, @Percent_Delivery_Planned, @Card_Corner_Status)`;
 
       const insertOptions = {
         query: insertQuery,
@@ -236,14 +228,40 @@ app.post('/api/data', async (req, res) => {
         }
       };
 
-      const [insertJob] = await bigQueryClient.createQueryJob(insertOptions);
-      await insertJob.getQueryResults();
-
-      res.status(200).send({ message: 'Task inserted successfully.' });
+      await bigQueryClient.createQueryJob(insertOptions);
     }
+
+    // Handle slider values (insert into Per_Key_Per_Day)
+    console.log('Received sliders data:', sliders);
+
+    // Prepare the insert queries
+   
+    const insertSliderQueries = sliders.map(slider => ({
+
+    
+      query: `INSERT INTO \`${projectId}.${bigQueryDataset}.${bigQueryTable2}\` (Key, day, duration) VALUES (@Key, @day, @duration)`,
+      params: {
+        Key: Number(Key), // Ensure Key is stored as INT64
+        day: slider.day , // Use null if day is not set
+        duration: Number(slider.duration) // Ensure duration is stored as INT64
+      },
+      types: {
+        Key: 'INT64',
+        day: 'STRING',
+        duration: 'INT64'
+      }
+    }));
+    console.log('Prepared insert queries:', insertSliderQueries); 
+    // Insert all slider data
+    await Promise.all(insertSliderQueries.map(async (insertOption) => {
+      await bigQueryClient.createQueryJob(insertOption);
+    }));
+    
+
+    res.status(200).send({ message: 'Task and slider data stored successfully.' });
   } catch (error) {
-    console.error('Error processing task:', error);
-    res.status(500).send({ error: 'Failed to process task.' });
+    console.error('Error processing task and slider data:', error);
+    res.status(500).send({ error: 'Failed to store task and slider data.' });
   }
 });
 
