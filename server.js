@@ -31,7 +31,7 @@ app.use(express.json()); // To handle JSON requests
 // Route to get data from BigQuery
 app.get('/api/data', async (req, res) => {
   try {
-    const query = `SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` `;
+    const query = `SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` LIMIT 10000 `;
     const [rows] = await bigQueryClient.query(query);
     console.log('Data fetched from BigQuery:', rows);
 
