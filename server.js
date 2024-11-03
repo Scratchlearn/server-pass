@@ -10,6 +10,7 @@ const keyFilePath = path.join(__dirname, process.env.GOOGLE_KEY_FILE);
 const bigQueryDataset = process.env.BIGQUERY_DATASET;
 const bigQueryTable = process.env.BIGQUERY_TABLE;
 const bigQueryTable2 = "Per_Key_Per_Day";
+const bigQueryTable3 = "Per_Person_Per_Day"
 
 // Initialize express app
 const app = express();
@@ -91,6 +92,26 @@ app.get('/api/per-key-per-day', async (req, res) => {
     res.status(500).json({ message: err.message, stack: err.stack });
   }
 });
+
+// Route to get data from the Per_Person_Per_Day table with summed Duration
+app.get('/api/per-person-per-day', async (req, res) => {
+  try {
+    const query = `SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable3}\``;
+    const [rows] = await bigQueryClient.query(query);
+
+    // Directly return the fetched rows
+    console.log("Fetched data:", rows);
+    res.status(200).json(rows);
+  } catch (err) {
+    console.error('Error querying Per_Key_Per_Day:', err.message, err.stack);
+    res.status(500).json({ message: err.message, stack: err.stack });
+  }
+});
+
+
+
+
+
 
 
 // post req
