@@ -140,7 +140,9 @@ app.post('/api/data', async (req, res) => {
     Card_Corner_Status,
     sliders // This is expected to be an array of slider data
   } = req.body;
-  console.log(req.body)
+  
+  console.log(req.body);
+  
   // Check if sliders data is provided
   if (!sliders || sliders.length === 0) {
     return res.status(400).send({ error: 'Slider data is mandatory.' });
@@ -294,34 +296,67 @@ app.post('/api/data', async (req, res) => {
     // Handle slider values (insert into Per_Key_Per_Day)
     console.log('Received sliders data:', sliders);
 
-    // Prepare the insert queries
-   
-    const insertSliderQueries = sliders.map(slider => ({
+    // Prepare the insert or update queries for sliders
+    const insertOrUpdateSliderQueries = await Promise.all(sliders.map(async (slider) => {
+      const selectQuery = {
+        query: `SELECT duration FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable2}\` WHERE Key = @Key AND day = @day LIMIT 1`,
+        params: {
+          Key: Number(Key),
+          day: slider.day,
+        },
+        types: {
+          Key: 'INT64',
+          day: 'STRING',
+        },
+      };
 
-    
-      query: `INSERT INTO \`${projectId}.${bigQueryDataset}.${bigQueryTable2}\` (Key, day, duration) VALUES (@Key, @day, @duration)`,
-      params: {
-        Key: Number(Key), // Ensure Key is stored as INT64
-        day: slider.day , // Use null if day is not set
-        duration: Number(slider.duration) // Ensure duration is stored as INT64
-      },
-      types: {
-        Key: 'INT64',
-        day: 'STRING',
-        duration: 'INT64'
+      // Check if the slider data already exists
+      const [sliderRows] = await bigQueryClient.query(selectQuery);
+
+      if (sliderRows.length > 0) {
+        // Update existing slider record
+        return {
+          query: `UPDATE \`${projectId}.${bigQueryDataset}.${bigQueryTable2}\` SET duration = @duration WHERE Key = @Key AND day = @day`,
+          params: {
+            Key: Number(Key),
+            day: slider.day,
+            duration: Number(slider.duration),
+          },
+          types: {
+            Key: 'INT64',
+            day: 'STRING',
+            duration: 'INT64',
+          },
+        };
+      } else {
+        // Insert new slider record
+        return {
+          query: `INSERT INTO \`${projectId}.${bigQueryDataset}.${bigQueryTable2}\` (Key, day, duration) VALUES (@Key, @day, @duration)`,
+          params: {
+            Key: Number(Key),
+            day: slider.day,
+            duration: Number(slider.duration),
+          },
+          types: {
+            Key: 'INT64',
+            day: 'STRING',
+            duration: 'INT64',
+          },
+        };
       }
     }));
-    console.log('Prepared insert queries:', insertSliderQueries); 
-    // Insert all slider data
-    await Promise.all(insertSliderQueries.map(async (insertOption) => {
-      await bigQueryClient.createQueryJob(insertOption);
-    }));
-    
 
-    res.status(200).send({ message: 'Task and slider data stored successfully.' });
+    // Execute each query (either an INSERT or UPDATE) based on the result
+    await Promise.all(
+      insertOrUpdateSliderQueries.map(async (queryOption) => {
+        await bigQueryClient.createQueryJob(queryOption);
+      })
+    );
+
+    res.status(200).send({ message: 'Task and slider data stored or updated successfully.' });
   } catch (error) {
     console.error('Error processing task and slider data:', error);
-    res.status(500).send({ error: 'Failed to store task and slider data.' });
+    res.status(500).send({ error: 'Failed to store or update task and slider data.' });
   }
 });
 
