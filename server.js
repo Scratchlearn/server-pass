@@ -31,8 +31,22 @@ app.use(express.json()); // To handle JSON requests
 // Route to get data from BigQuery
 app.get('/api/data', async (req, res) => {
   try {
-    const query = `SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` LIMIT 10000 `;
-    const [rows] = await bigQueryClient.query(query);
+    // Get limit and offset from query parameters, with default values
+    const limit = parseInt(req.query.limit, 10) || 10; // default to 10 rows
+    const offset = parseInt(req.query.offset, 10) || 0; // default to start at the beginning
+
+    const query = `
+      SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\`
+      ORDER BY DelCode_w_o__
+      LIMIT @limit OFFSET @offset
+    `;
+
+    const options = {
+      query: query,
+      params: { limit, offset },
+    };
+
+    const [rows] = await bigQueryClient.query(options);
     console.log('Data fetched from BigQuery:', rows);
 
     // Group the data by DelCode_w_o__
@@ -47,11 +61,36 @@ app.get('/api/data', async (req, res) => {
 
     res.status(200).json(groupedData);
   } catch (err) {
-    console.error('Error querying BigQuery:', err.message, err.stack); // Detailed error logging
+    console.error('Error querying BigQuery:', err.message, err.stack);
     res.status(500).json({ message: err.message, stack: err.stack });
   }
 });
 
+
+// Route to get data from the Per_Key_Per_Day table with summed Duration
+app.get('/api/per-key-per-day', async (req, res) => {
+  try {
+    const query = `SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable2}\``;
+    const [rows] = await bigQueryClient.query(query);
+
+    // Group the data by Key and sum the Duration
+    const groupedData = rows.reduce((acc, item) => {
+      const key = item.Key;
+      if (!acc[key]) {
+        acc[key] = { totalDuration: 0, entries: [] };
+      }
+      acc[key].totalDuration += parseFloat(item.Duration) || 0; // Add Duration
+      acc[key].entries.push(item); // Add the item itself for reference if needed
+      return acc;
+    }, {});
+
+    console.log("Grouped data with total duration:", groupedData);
+    res.status(200).json(groupedData);
+  } catch (err) {
+    console.error('Error querying Per_Key_Per_Day:', err.message, err.stack);
+    res.status(500).json({ message: err.message, stack: err.stack });
+  }
+});
 
 
 // post req
@@ -80,7 +119,7 @@ app.post('/api/data', async (req, res) => {
     Card_Corner_Status,
     sliders // This is expected to be an array of slider data
   } = req.body;
-
+  console.log(req.body)
   // Check if sliders data is provided
   if (!sliders || sliders.length === 0) {
     return res.status(400).send({ error: 'Slider data is mandatory.' });
