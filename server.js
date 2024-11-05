@@ -33,8 +33,8 @@ app.use(express.json()); // To handle JSON requests
 app.get('/api/data', async (req, res) => {
   try {
     // Get limit and offset from query parameters, with default values
-    const limit = parseInt(req.query.limit, 10) || 10; // default to 10 rows
-    const offset = parseInt(req.query.offset, 10) || 0; // default to start at the beginning
+    const limit = parseInt(req.query.limit, 1000) || 1000; // default to 10 rows
+    const offset = parseInt(req.query.offset, 1000) || 0; // default to start at the beginning
 
     const query = `
       SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\`
