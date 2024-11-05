@@ -447,8 +447,7 @@ const bigQueryClient = new BigQuery({
 // Middleware setup
 app.use(cors({
   origin: 'https://updated-front-ui.vercel.app'
-}));
-; // Enable CORS
+})); // Enable CORS
 app.use(express.json()); // To handle JSON requests
 
 
