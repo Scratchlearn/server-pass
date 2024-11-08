@@ -419,8 +419,7 @@ const { BigQuery } = require('@google-cloud/bigquery');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
-const { OAuth2Client } = require("google-auth-library");
-
+//const { OAuth2Client } = require("google-auth-library");
 
 dotenv.config();
 
@@ -429,25 +428,30 @@ const keyFilePath = path.join(__dirname, process.env.GOOGLE_KEY_FILE);
 const bigQueryDataset = process.env.BIGQUERY_DATASET;
 const bigQueryTable = process.env.BIGQUERY_TABLE;
 const bigQueryTable2 = "Per_Key_Per_Day";
-const bigQueryTable3 = "Per_Person_Per_Day"
+const bigQueryTable3 = "Per_Person_Per_Day";
 
-// Initialize express app
 const app = express();
 
-console.log('Key file path:', keyFilePath);
-console.log(bigQueryDataset);
-console.log(bigQueryTable);
+// Middleware setup
+app.use(cors());
+app.use(express.json());
+
+// Security headers to enable COOP and COEP
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+});
 
 const bigQueryClient = new BigQuery({
-  keyFilename: keyFilePath, // Use forward slashes
-  projectId: projectId, // Your Google Cloud project ID
-  scopes: ['https://www.googleapis.com/auth/drive'], // Add Google Drive scope
+  keyFilename: keyFilePath,
+  projectId: projectId,
+  scopes: ['https://www.googleapis.com/auth/drive'],
 });
 
 // Middleware setup
-app.use(cors({
-  origin: 'https://updated-front-ui.vercel.app'
-})); // Enable CORS
+app.use(cors());
+ // Enable CORS
 app.use(express.json()); // To handle JSON requests
 
 
@@ -455,27 +459,28 @@ app.use(express.json()); // To handle JSON requests
 
 
 
-
-
-
-
-
-// Route to get data from BigQuery
 app.get('/api/data', async (req, res) => {
   try {
-    // Get limit and offset from query parameters, with default values
-    const limit = parseInt(req.query.limit, 500000) || 500000; // default to 10 rows
-    const offset = parseInt(req.query.offset, 500000) || 0; // default to start at the beginning
+    // Get limit, offset, and email from query parameters
+    const limit = parseInt(req.query.limit, 10) || 10; // default to 10 rows
+    const offset = parseInt(req.query.offset, 10) || 0; // default to start at the beginning
+    const email = req.query.email; // email from query parameters
+
+    // Ensure email is provided
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
 
     const query = `
       SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\`
+      WHERE Email = @email
       ORDER BY DelCode_w_o__
       LIMIT @limit OFFSET @offset
     `;
 
     const options = {
       query: query,
-      params: { limit, offset },
+      params: { limit, offset, email },
     };
 
     const [rows] = await bigQueryClient.query(options);
