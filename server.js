@@ -471,13 +471,14 @@ app.get('/api/data', async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    const query = `
-      SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\`
-      WHERE Email = @email
-      ORDER BY DelCode_w_o__
-      LIMIT @limit OFFSET @offset
-    `;
-
+   const query = `
+    SELECT * FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\`
+    WHERE Email = @email
+    AND Planned_Start_Timestamp IS NULL
+    AND Planned_Delivery_Timestamp IS NULL
+    ORDER BY DelCode_w_o__
+    LIMIT @limit OFFSET @offset
+  `;
     const options = {
       query: query,
       params: { limit, offset, email },
