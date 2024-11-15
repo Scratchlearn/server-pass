@@ -552,7 +552,7 @@ app.get('/api/per-person-per-day', async (req, res) => {
 
 
 // post req
-app.post('/api/data', async (req, res) => {
+app.post('/api/post', async (req, res) => {
   const {
     Key,
     Delivery_code,
