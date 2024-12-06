@@ -922,8 +922,8 @@ app.get('/api/data', async (req, res) => {
   //   ORDER BY DelCode_w_o__
   //   LIMIT @limit OFFSET @offset
   // `;
-  const query = `
-       SELECT * 
+ const query = `
+      SELECT * 
 FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` 
 WHERE 
     REGEXP_CONTAINS(Email, CONCAT('(^|[[:space:],])', @email, '([[:space:],]|$)')) 
@@ -931,9 +931,14 @@ WHERE
         (Planned_Start_Timestamp IS NULL AND Planned_Delivery_Timestamp IS NULL) 
         OR 
         (Step_ID = 0 AND Planned_Start_Timestamp IS NOT NULL AND Planned_Delivery_Timestamp IS NOT NULL)
+        OR 
+        (Step_ID = 0 AND Planned_Start_Timestamp IS NOT NULL AND Planned_Delivery_Timestamp IS NULL)
+         OR 
+        (Step_ID = 0 AND Planned_Start_Timestamp IS NULL AND Planned_Delivery_Timestamp IS NOT NULL)
     )
 ORDER BY DelCode_w_o__ 
 LIMIT @limit OFFSET @offset;
+
         `;
     const options = {
       
