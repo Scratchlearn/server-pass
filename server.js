@@ -903,7 +903,8 @@ app.use(express.json()); // To handle JSON requests
 
 
 
-app.get('/api/data', async (req, res) => { 
+
+app.get('/api/data', async (req, res) => {
   try {
     // Get limit, offset, and email from query parameters
     const limit = parseInt(req.query.limit, 500) || 500; // default to 10 rows
@@ -914,9 +915,9 @@ app.get('/api/data', async (req, res) => {
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
-  const query = 
+  const query = `
       SELECT * 
-FROM \${projectId}.${bigQueryDataset}.${bigQueryTable}\ 
+FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` 
 WHERE 
     REGEXP_CONTAINS(Email, CONCAT('(^|[[:space:],])', @email, '([[:space:],]|$)')) 
     AND (
@@ -931,7 +932,7 @@ WHERE
 ORDER BY DelCode_w_o__ 
 LIMIT @limit OFFSET @offset;
 
-        ;
+        `;
     const options = {
       
       query: query,
@@ -957,6 +958,7 @@ LIMIT @limit OFFSET @offset;
     res.status(500).json({ message: err.message, stack: err.stack });
   }
 });
+
 
 
 // Route to get data from the Per_Person_Per_Day table with summed Duration
