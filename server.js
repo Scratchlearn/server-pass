@@ -903,10 +903,10 @@ app.use(express.json()); // To handle JSON requests
 
 
 
-app.get('/api/data', async (req, res) => {
+app.get('/api/data', async (req, res) => { 
   try {
     // Get limit, offset, and email from query parameters
-    const limit = parseInt(req.query.limit, 500) || 500; // default to 500 rows
+    const limit = parseInt(req.query.limit, 500) || 500; // default to 10 rows
     const offset = parseInt(req.query.offset, 500) || 0; // default to start at the beginning
     const email = req.query.email; // email from query parameters
 
@@ -914,43 +914,26 @@ app.get('/api/data', async (req, res) => {
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
-
-    // Define additional emails for special user
-    const additionalEmails = [
-      'archana.l@brightbraintech.com',
-      'sarthak.c@brightbraintech.com'
-    ];
-
-    // Build the query conditionally based on the email
-    let emailCondition;
-    if (email === 'meghna.j@brightbrain.com') {
-      // Include tasks for the additional emails if email matches meghna.j
-      const emailList = [`'${email}'`, ...additionalEmails.map(e => `'${e}'`)].join(',');
-      emailCondition = `Email IN (${emailList})`;
-    } else {
-      // Regular email filtering
-      emailCondition = `REGEXP_CONTAINS(Email, CONCAT('(^|[[:space:],])', @email, '([[:space:],]|$)'))`;
-    }
-
-    const query = `
+  const query = 
       SELECT * 
-      FROM \`${projectId}.${bigQueryDataset}.${bigQueryTable}\` 
-      WHERE 
-          ${emailCondition} 
-          AND (
-              (Planned_Start_Timestamp IS NULL AND Planned_Delivery_Timestamp IS NULL) 
-              OR 
-              (Step_ID = 0 AND Planned_Start_Timestamp IS NOT NULL AND Planned_Delivery_Timestamp IS NOT NULL)
-              OR 
-              (Step_ID = 0 AND Planned_Start_Timestamp IS NOT NULL AND Planned_Delivery_Timestamp IS NULL)
-              OR 
-              (Step_ID = 0 AND Planned_Start_Timestamp IS NULL AND Planned_Delivery_Timestamp IS NOT NULL)
-          )
-      ORDER BY DelCode_w_o__ 
-      LIMIT @limit OFFSET @offset;
-    `;
+FROM \${projectId}.${bigQueryDataset}.${bigQueryTable}\ 
+WHERE 
+    REGEXP_CONTAINS(Email, CONCAT('(^|[[:space:],])', @email, '([[:space:],]|$)')) 
+    AND (
+        (Planned_Start_Timestamp IS NULL AND Planned_Delivery_Timestamp IS NULL) 
+        OR 
+        (Step_ID = 0 AND Planned_Start_Timestamp IS NOT NULL AND Planned_Delivery_Timestamp IS NOT NULL)
+        OR 
+        (Step_ID = 0 AND Planned_Start_Timestamp IS NOT NULL AND Planned_Delivery_Timestamp IS NULL)
+         OR 
+        (Step_ID = 0 AND Planned_Start_Timestamp IS NULL AND Planned_Delivery_Timestamp IS NOT NULL)
+    )
+ORDER BY DelCode_w_o__ 
+LIMIT @limit OFFSET @offset;
 
+        ;
     const options = {
+      
       query: query,
       params: { limit, offset, email },
     };
@@ -974,7 +957,6 @@ app.get('/api/data', async (req, res) => {
     res.status(500).json({ message: err.message, stack: err.stack });
   }
 });
-
 
 
 // Route to get data from the Per_Person_Per_Day table with summed Duration
